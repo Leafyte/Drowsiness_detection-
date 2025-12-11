@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drowsiness Detection Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .status-bar {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .status-item {
+            text-align: center;
+            padding: 10px 20px;
+        }
+        
+        .status-item h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .status-item .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.safe {
+            background: #4CAF50;
+        }
+        
+        .status-indicator.warning {
+            background: #FFC107;
+        }
+        
+        .status-indicator.danger {
+            background: #f44336;
+            animation: blink 0.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes blink {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0; }
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-top: 75%; /* 4:3 Aspect Ratio */
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .video-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .alert-log {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        
+        .alert-item {
+            background: white;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .alert-item.drowsy {
+            border-left-color: #f44336;
+        }
+        
+        .alert-item.yawn {
+            border-left-color: #FFC107;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .alert-item .type {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.85em;
+        }
+        
+        .alert-item .time {
+            color: #666;
+            font-size: 0.85em;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        button.primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        button.primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button.danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        button.danger:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(244, 67, 54, 0.4);
+        }
+        
+        button.secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        button.secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-box .label {
+            font-size: 0.85em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
+        .stat-box .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        .alarm-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(244, 67, 54, 0.95);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 20px;
+            font-size: 2em;
+            font-weight: bold;
+            display: none;
+            z-index: 1000;
+            animation: shake 0.5s infinite;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+            25% { transform: translate(-50%, -50%) rotate(-5deg); }
+            75% { transform: translate(-50%, -50%) rotate(5deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .status-bar {
+                flex-direction: column;
+            }
+            
+            header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="alarm-indicator" id="alarmIndicator">
+        ⚠️ DROWSINESS ALERT! ⚠️
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>🚗 Drowsiness Detection System</h1>
+            <p>Real-time monitoring for driver safety</p>
+        </header>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <h3>Status</h3>
+                <div class="value">
+                    <span id="statusText">SAFE</span>
+                    <span class="status-indicator safe" id="statusIndicator"></span>
+                </div>
+            </div>
+            <div class="status-item">
+                <h3>EAR</h3>
+                <div class="value" id="earValue">0.00</div>
+            </div>
+            <div class="status-item">
+                <h3>MAR</h3>
+                <div class="value" id="marValue">0.00</div>
+            </div>
+            <div class="status-item">
+                <h3>Blinks</h3>
+                <div class="value" id="blinksValue">0</div>
+            </div>
+            <div class="status-item">
+                <h3>Alerts</h3>
+                <div class="value" id="alertsValue">0</div>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2>📹 Live Video Feed</h2>
+                <div class="video-container">
+                    <img id="videoFeed" src="/video_feed" alt="Video feed">
+                </div>
+                <div class="controls">
+                    <button class="primary" onclick="startDetection()">▶️ Start</button>
+                    <button class="danger" onclick="stopDetection()">⏹️ Stop</button>
+                    <button class="secondary" onclick="resetSession()">🔄 Reset</button>
+                </div>
+            </div>
+            
+            <div>
+                <div class="card">
+                    <h2>🚨 Alert Log</h2>
+                    <div class="alert-log" id="alertLog">
+                        <p style="text-align: center; color: #999;">No alerts yet</p>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top: 20px;">
+                    <h2>📊 Session Stats</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="label">Total Alerts</div>
+                            <div class="value" id="totalAlerts">0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="label">Avg EAR</div>
+                            <div class="value" id="avgEar">0.00</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="label">Blink Rate</div>
+                            <div class="value" id="blinkRate">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>📈 Real-time Metrics</h2>
+            <div class="chart-container">
+                <canvas id="metricsChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <audio id="alarmSound" loop>
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBDWK0fPTgjEGHm7A6+qYVhMKUqbn77BgGAU7k9X3y30nBSF0xe/glEQMElyz5O2rWBUIR6Hf8bllHAQ5i9Ty1H8qBSJ1xe3glEQNEluz5Oy" type="audio/wav">
+    </audio>
+    
+    <script>
+        // Initialize Chart
+        const ctx = document.getElementById('metricsChart').getContext('2d');
+        const metricsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'EAR',
+                        data: [],
+                        borderColor: 'rgb(102, 126, 234)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'MAR',
+                        data: [],
+                        borderColor: 'rgb(255, 193, 7)',
+                        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1
+                    },
+                    x: {
+                        display: false
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                }
+            }
+        });
+        
+        let alarmPlaying = false;
+        
+        // Update status display
+        function updateStatus(data) {
+            document.getElementById('earValue').textContent = data.ear.toFixed(2);
+            document.getElementById('marValue').textContent = data.mar.toFixed(2);
+            document.getElementById('blinksValue').textContent = data.blinks;
+            
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const alarmIndicator = document.getElementById('alarmIndicator');
+            const alarmSound = document.getElementById('alarmSound');
+            
+            if (data.drowsy) {
+                statusText.textContent = 'DROWSY!';
+                statusIndicator.className = 'status-indicator danger';
+                alarmIndicator.style.display = 'block';
+                if (!alarmPlaying) {
+                    alarmSound.play();
+                    alarmPlaying = true;
+                }
+            } else if (data.yawning) {
+                statusText.textContent = 'YAWNING';
+                statusIndicator.className = 'status-indicator warning';
+                alarmIndicator.style.display = 'none';
+                if (alarmPlaying) {
+                    alarmSound.pause();
+                    alarmSound.currentTime = 0;
+                    alarmPlaying = false;
+                }
+            } else {
+                statusText.textContent = 'SAFE';
+                statusIndicator.className = 'status-indicator safe';
+                alarmIndicator.style.display = 'none';
+                if (alarmPlaying) {
+                    alarmSound.pause();
+                    alarmSound.currentTime = 0;
+                    alarmPlaying = false;
+                }
+            }
+        }
+        
+        // Update chart
+        function updateChart(data) {
+            const maxPoints = 50;
+            
+            metricsChart.data.labels.push('');
+            metricsChart.data.datasets[0].data.push(data.ear);
+            metricsChart.data.datasets[1].data.push(data.mar);
+            
+            if (metricsChart.data.labels.length > maxPoints) {
+                metricsChart.data.labels.shift();
+                metricsChart.data.datasets[0].data.shift();
+                metricsChart.data.datasets[1].data.shift();
+            }
+            
+            metricsChart.update('none');
+        }
+        
+        // Update alerts
+        function updateAlerts(alerts) {
+            const alertLog = document.getElementById('alertLog');
+            if (alerts.length === 0) {
+                alertLog.innerHTML = '<p style="text-align: center; color: #999;">No alerts yet</p>';
+                return;
+            }
+            
+            alertLog.innerHTML = alerts.slice(-10).reverse().map(alert => {
+                const time = new Date(alert.timestamp).toLocaleTimeString();
+                return `
+                    <div class="alert-item ${alert.type}">
+                        <span class="type">${alert.type}</span>
+                        <span class="time">${time}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Fetch status updates
+        function fetchStatus() {
+            fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    updateStatus(data);
+                    updateChart(data);
+                })
+                .catch(error => console.error('Error fetching status:', error));
+        }
+        
+        // Fetch alerts
+        function fetchAlerts() {
+            fetch('/api/alerts')
+                .then(response => response.json())
+                .then(data => {
+                    updateAlerts(data.alerts);
+                    document.getElementById('alertsValue').textContent = data.total_alerts;
+                })
+                .catch(error => console.error('Error fetching alerts:', error));
+        }
+        
+        // Fetch stats
+        function fetchStats() {
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('totalAlerts').textContent = data.total_alerts;
+                    document.getElementById('avgEar').textContent = data.avg_ear.toFixed(2);
+                })
+                .catch(error => console.error('Error fetching stats:', error));
+        }
+        
+        // Control functions
+        function startDetection() {
+            fetch('/api/start', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => console.log(data.message))
+                .catch(error => console.error('Error:', error));
+        }
+        
+        function stopDetection() {
+            fetch('/api/stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => console.log(data.message))
+                .catch(error => console.error('Error:', error));
+        }
+        
+        function resetSession() {
+            if (confirm('Reset all session data?')) {
+                fetch('/api/reset', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data.message);
+                        location.reload();
+                    })
+                    .catch(error => console.error('Error:', error));
+            }
+        }
+        
+        // Poll for updates every 500ms
+        setInterval(fetchStatus, 500);
+        setInterval(fetchAlerts, 2000);
+        setInterval(fetchStats, 5000);
+        
+        // Initial fetch
+        fetchStatus();
+        fetchAlerts();
+        fetchStats();
+    </script>
+</body>
+</html>
